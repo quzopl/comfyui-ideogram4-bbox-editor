@@ -1,4 +1,4 @@
-import { app } from "../../scripts/app.js";
+const { app } = window.comfyAPI.app;
 
 const STYLE = `
 .ideo4{--bg:#0e0f12;--panel:#16181d;--panel2:#1d2026;--line:#2a2e36;--txt:#e6e7ea;
@@ -401,8 +401,8 @@ function buildEditor(node) {
 
 app.registerExtension({
   name: "ideogram4.bbox.editor",
-  async beforeRegisterNodeType(nodeType, nodeData) {
-    if (nodeData.name !== "Ideogram4BboxEditor") return;
+  async beforeRegisterNodeDef(nodeType, nodeData) {
+    if (nodeData?.name !== "Ideogram4BboxEditor") return;
     injectStyleOnce();
     const onNodeCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
