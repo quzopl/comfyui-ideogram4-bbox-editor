@@ -248,6 +248,10 @@ function buildEditor(node) {
     if (!dnode) return;
     const startX = ev.clientX, startY = ev.clientY;
     const o = pxFromBbox(e.bbox);
+    // Pointer capture routes every subsequent move/up to this box, so the drag
+    // keeps working even when the cursor leaves it and LiteGraph can't steal it.
+    const pid = ev.pointerId;
+    try { dnode.setPointerCapture(pid); } catch (_) {}
     const move = (m) => {
       let dx = m.clientX - startX, dy = m.clientY - startY;
       let left = o.left, top = o.top, w = o.width, h = o.height;
@@ -261,12 +265,13 @@ function buildEditor(node) {
       updateBboxReadout(e);
     };
     const up = () => {
-      document.removeEventListener("pointermove", move);
-      document.removeEventListener("pointerup", up);
+      try { dnode.releasePointerCapture(pid); } catch (_) {}
+      dnode.removeEventListener("pointermove", move);
+      dnode.removeEventListener("pointerup", up);
       serialize();
     };
-    document.addEventListener("pointermove", move);
-    document.addEventListener("pointerup", up);
+    dnode.addEventListener("pointermove", move);
+    dnode.addEventListener("pointerup", up);
   }
   function bindDrag(dnode, e) {
     const handle = dnode.querySelector(".se");
