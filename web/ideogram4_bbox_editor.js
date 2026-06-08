@@ -4,14 +4,14 @@ const STYLE = `
 .ideo4{--bg:#0e0f12;--panel:#16181d;--panel2:#1d2026;--line:#2a2e36;--txt:#e6e7ea;
   --mut:#9aa0aa;--acc:#d8743a;--acc2:#3aa0d8;--grid:rgba(255,255,255,.06);
   --mono:ui-monospace,Menlo,Consolas,monospace;--sans:system-ui,sans-serif;
-  background:var(--bg);color:var(--txt);font:13px/1.4 var(--sans);
+  background:var(--bg);color:var(--txt);font:14px/1.45 var(--sans);
   display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:8px;height:100%;box-sizing:border-box}
 .ideo4 *{box-sizing:border-box}
 .ideo4 .toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .ideo4 .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
-.ideo4 .seg button{background:var(--panel);color:var(--mut);border:0;padding:5px 10px;cursor:pointer;font:13px var(--sans)}
+.ideo4 .seg button{background:var(--panel);color:var(--mut);border:0;padding:6px 13px;cursor:pointer;font:14px var(--sans)}
 .ideo4 .seg button.on{background:var(--acc);color:#1a0d05;font-weight:600}
-.ideo4 .btn{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:5px 10px;border-radius:7px;cursor:pointer;font:13px var(--sans)}
+.ideo4 .btn{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:6px 13px;border-radius:7px;cursor:pointer;font:14px var(--sans)}
 .ideo4 .btn:hover{border-color:var(--acc)}
 .ideo4 .btn.acc{background:var(--acc);color:#1a0d05;border-color:var(--acc);font-weight:600}
 .ideo4 .canvas-host{flex:1;display:flex;align-items:center;justify-content:center;
@@ -22,15 +22,15 @@ const STYLE = `
   background-size:10% 10%,10% 10%}
 .ideo4 .bx{position:absolute;border:1.5px solid var(--acc);background:rgba(216,116,58,.12);cursor:move;border-radius:2px}
 .ideo4 .bx.sel{border-color:#fff;background:rgba(216,116,58,.22);box-shadow:0 0 0 1px var(--acc)}
-.ideo4 .bx .tag{position:absolute;top:-9px;left:6px;background:var(--acc);color:#1a0d05;font:600 11px/1.4 var(--sans);padding:1px 6px;border-radius:5px;white-space:nowrap;pointer-events:none}
+.ideo4 .bx .tag{position:absolute;top:-11px;left:6px;background:var(--acc);color:#1a0d05;font:600 12px/1.4 var(--sans);padding:2px 7px;border-radius:5px;white-space:nowrap;pointer-events:none}
 .ideo4 .bx.text{border-color:var(--acc2);background:rgba(58,160,216,.12)}
 .ideo4 .bx.text .tag{background:var(--acc2);color:#04161f}
 .ideo4 .h{position:absolute;width:11px;height:11px;background:#fff;border:1px solid var(--acc);border-radius:2px}
 .ideo4 .h.se{right:-6px;bottom:-6px;cursor:nwse-resize}
-.ideo4 .hint{color:var(--mut);font-size:11px}
-.ideo4 label.lbl{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
-.ideo4 input,.ideo4 textarea{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font:12px var(--sans);width:100%}
-.ideo4 textarea{resize:vertical;min-height:42px;font:12px var(--mono)}
+.ideo4 .hint{color:var(--mut);font-size:12px}
+.ideo4 label.lbl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+.ideo4 input,.ideo4 textarea{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px var(--sans);width:100%}
+.ideo4 textarea{resize:vertical;min-height:48px;font:13px var(--mono)}
 .ideo4 .field{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
 .ideo4 details.cap{border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:var(--panel)}
 .ideo4 details.cap summary{cursor:pointer;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
@@ -38,14 +38,14 @@ const STYLE = `
 .ideo4 .card{border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel2)}
 .ideo4 .card.sel{border-color:var(--acc)}
 .ideo4 .card .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.ideo4 .mini{font:11px var(--mono);color:var(--mut)}
-.ideo4 .x{background:transparent;border:0;color:var(--mut);cursor:pointer;font-size:15px;line-height:1}
+.ideo4 .mini{font:12px var(--mono);color:var(--mut)}
+.ideo4 .x{background:transparent;border:0;color:var(--mut);cursor:pointer;font-size:17px;line-height:1}
 .ideo4 .x:hover{color:var(--acc)}
-.ideo4 .zb{background:var(--panel);border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:10px;border-radius:4px;padding:2px 5px}
+.ideo4 .zb{background:var(--panel);border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:11px;border-radius:4px;padding:3px 6px}
 .ideo4 .zb:hover{color:var(--acc);border-color:var(--acc)}
 .ideo4 .pal{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
 .ideo4 .sw{width:16px;height:16px;border-radius:4px;border:1px solid var(--line)}
-.ideo4 pre.json{margin:0;background:#0b0c0e;border:1px solid var(--line);border-radius:7px;padding:8px;font:11px var(--mono);color:#cdd2da;max-height:120px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.ideo4 pre.json{margin:0;background:#0b0c0e;border:1px solid var(--line);border-radius:7px;padding:9px;font:12px var(--mono);color:#cdd2da;max-height:140px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 `;
 
 function injectStyleOnce() {
@@ -119,6 +119,11 @@ function buildEditor(node) {
   const listEl = root.querySelector("[data-list]");
   const jsonEl = root.querySelector("[data-json]");
   const $ = (s) => root.querySelector(s);
+
+  // Keep pointer/wheel interactions inside the editor — otherwise LiteGraph
+  // pans the canvas / drags the node while you move or resize boxes.
+  root.addEventListener("pointerdown", (e) => e.stopPropagation());
+  root.addEventListener("wheel", (e) => e.stopPropagation());
 
   // ---- import normalize (verbatim) ----
   function normalize(obj) {
@@ -213,6 +218,7 @@ function buildEditor(node) {
   let lastHit = null, lastIdx = 0;
   frame.addEventListener("pointerdown", (ev) => {
     if (ev.target.classList.contains("se")) return;
+    ev.preventDefault();
     const r = frame.getBoundingClientRect();
     const px = ev.clientX - r.left, py = ev.clientY - r.top;
     const hits = els.filter((e) => {
@@ -389,14 +395,18 @@ function buildEditor(node) {
   const ro = new ResizeObserver(() => fitFrame());
   ro.observe(root.querySelector(".canvas-host"));
 
-  // load existing workflow value, else seed one obj
-  let seeded = false;
-  if (widget && widget.value && widget.value.trim() && widget.value.trim() !== "{}") {
-    try { loadCaption(widget.value); seeded = true; } catch (e) {}
-  }
-  if (!seeded) addEl("obj");
-  syncCapFields();
-  setTimeout(fitFrame, 0);
+  // Deferred init: when loading a saved workflow, ComfyUI applies widget values
+  // via configure() AFTER onNodeCreated, so read the value on the next tick to
+  // pick up a restored caption; otherwise seed a single obj for a fresh node.
+  setTimeout(() => {
+    let seeded = false;
+    if (widget && widget.value && widget.value.trim() && widget.value.trim() !== "{}") {
+      try { loadCaption(widget.value); seeded = true; } catch (e) {}
+    }
+    if (!seeded && els.length === 0) addEl("obj");
+    syncCapFields();
+    fitFrame();
+  }, 0);
 }
 
 app.registerExtension({
