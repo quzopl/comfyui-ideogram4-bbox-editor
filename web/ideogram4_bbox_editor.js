@@ -146,34 +146,34 @@ function buildEditor(node) {
         <button data-arv="16:9">16:9</button>
         <button data-arv="3:1">3:1</button>
       </div>
-      <input class="arInput" data-arcustom value="1:1" title="własne W:H">
+      <input class="arInput" data-arcustom value="1:1" title="custom W:H">
       <button class="btn acc" data-add="obj">+ obj</button>
       <button class="btn" data-add="text">+ text</button>
-      <button class="btn" data-imp>Wklej JSON</button>
+      <button class="btn" data-imp>Paste JSON</button>
     </div>
     <div data-impbar style="display:none;flex-direction:column;gap:6px">
-      <textarea data-imptxt placeholder="Wklej prompt JSON (stary lub nowy format, także zepsuty / podwójnie zakodowany — rozpakuję i przekonwertuję na v15)" style="min-height:80px"></textarea>
+      <textarea data-imptxt placeholder="Paste a prompt JSON (old or new format, even broken / double-encoded — it will be unwrapped and converted to v15)" style="min-height:80px"></textarea>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="btn acc" data-impload>Wczytaj</button>
-        <button class="btn" data-impcancel>Anuluj</button>
+        <button class="btn acc" data-impload>Load</button>
+        <button class="btn" data-impcancel>Cancel</button>
         <span class="hint" data-impmsg></span>
       </div>
     </div>
     <div class="canvas-host"><div class="frame" data-frame></div></div>
     <div class="bgbar">
-      <label class="chk" title="Proporcje siatki z wygenerowanego obrazu (a gdy go brak — z width/height)"><input type="checkbox" data-auto checked> Auto rozmiar</label>
-      <span class="badge" data-bgstat>brak podkładu</span>
-      <span style="display:flex;gap:5px;align-items:center">krycie <input type="range" data-bgop min="0.2" max="1" step="0.05" value="0.85"></span>
-      <button class="btn" data-bgclear>Wyczyść tło</button>
+      <label class="chk" title="Grid proportions from the generated image (or, when there is none, from width/height)"><input type="checkbox" data-auto checked> Auto size</label>
+      <span class="badge" data-bgstat>no backdrop</span>
+      <span style="display:flex;gap:5px;align-items:center">opacity <input type="range" data-bgop min="0.2" max="1" step="0.05" value="0.85"></span>
+      <button class="btn" data-bgclear>Clear backdrop</button>
     </div>
-    <div class="hint">Klik na boksie = wybór + przeciąganie (środek przesuwa, róg skaluje). Powtórny klik cykluje nakładające się boksy. Strzałki na karcie = z-order. Współrzędne 0–1000. Po generacji obraz wczytuje się jako podkład.</div>
+    <div class="hint">Click a box = select + drag (centre moves, corner resizes). Clicking again cycles overlapping boxes. Arrows on a card = z-order. Coordinates 0–1000. After a run the generated image loads as a backdrop.</div>
     <div class="list" data-list></div>
     <div class="out">
       <div class="vList" data-valbox></div>
       <div style="display:flex;gap:6px;margin-bottom:8px">
-        <button class="btn acc" data-copy style="flex:1">Kopiuj JSON (minified)</button>
+        <button class="btn acc" data-copy style="flex:1">Copy JSON (minified)</button>
         <button class="btn" data-copypretty>Pretty</button>
-        <button class="btn" data-dl>Pobierz</button>
+        <button class="btn" data-dl>Download</button>
       </div>
       <pre class="json" data-json></pre>
     </div>
@@ -210,7 +210,7 @@ function buildEditor(node) {
     if (!bgUrl) {
       frame.style.backgroundImage = "";   // fall back to the CSS grid-only frame
       frame.style.backgroundSize = ""; frame.style.backgroundRepeat = ""; frame.style.backgroundPosition = "";
-      if (stat) { stat.textContent = "brak podkładu"; stat.classList.remove("on"); }
+      if (stat) { stat.textContent = "no backdrop"; stat.classList.remove("on"); }
       return;
     }
     const dim = (1 - bgOpacity).toFixed(2);
@@ -222,7 +222,7 @@ function buildEditor(node) {
     frame.style.backgroundSize = "10% 10%,10% 10%,cover,cover";
     frame.style.backgroundRepeat = "repeat,repeat,no-repeat,no-repeat";
     frame.style.backgroundPosition = "0 0,0 0,center,center";
-    if (stat) { stat.textContent = "podkład wczytany"; stat.classList.add("on"); }
+    if (stat) { stat.textContent = "backdrop loaded"; stat.classList.add("on"); }
   }
   function onNewImage(url) {
     bgUrl = url;
@@ -392,7 +392,7 @@ function buildEditor(node) {
   }
   function updateBboxReadout(e) {
     const c = q('.card[data-id="' + e.id + '"] .mini');
-    if (c && c.childNodes[0]) c.childNodes[0].textContent = e.hasBbox ? "bbox [" + e.bbox.join(", ") + "] " : "bez bbox ";
+    if (c && c.childNodes[0]) c.childNodes[0].textContent = e.hasBbox ? "bbox [" + e.bbox.join(", ") + "] " : "no bbox ";
   }
   function bumpZ(id, dir) {
     const sorted = [...els].sort((a, b) => a.z - b.z), i = sorted.findIndex((e) => e.id === id), j = i + (dir > 0 ? 1 : -1);
@@ -413,19 +413,19 @@ function buildEditor(node) {
     head.innerHTML = "<h2>Prompt (v15)</h2>" +
       '<div class="field"><label class="lbl">aspect_ratio</label><input data-far value="' + esc(ar) + '"></div>' +
       '<div class="field"><label class="lbl">high_level_description <span class="ctr" data-hldctr></span></label><textarea data-fhld style="min-height:60px">' + esc(hld) + "</textarea></div>" +
-      '<div class="field"><label class="lbl">background (tylko powłoka sceny)</label><textarea data-fbg style="min-height:72px">' + esc(bg) + "</textarea></div>";
+      '<div class="field"><label class="lbl">background (scene shell only)</label><textarea data-fbg style="min-height:72px">' + esc(bg) + "</textarea></div>";
     L.appendChild(head);
-    if (!els.length) { const h = document.createElement("div"); h.className = "hint"; h.textContent = "Dodaj element + obj lub + text. Jeden podmiot = jeden element (części w desc)."; L.appendChild(h); }
+    if (!els.length) { const h = document.createElement("div"); h.className = "hint"; h.textContent = "Add an element with + obj or + text. One subject = one element (parts go in desc)."; L.appendChild(h); }
     [...els].sort((a, b) => a.z - b.z).forEach((e) => {
       const c = document.createElement("div"); c.className = "card" + (e.id === sel ? " sel" : ""); c.dataset.id = e.id;
       c.innerHTML = '<div class="top"><b>' + (e.type === "text" ? "text" : "obj") + " #" + e.id + "</b>" +
         '<span style="display:flex;gap:4px;align-items:center">' +
-        '<button class="zb" data-up="' + e.id + '" title="na wierzch">&#9650;</button>' +
-        '<button class="zb" data-down="' + e.id + '" title="pod spód">&#9660;</button>' +
+        '<button class="zb" data-up="' + e.id + '" title="to front">&#9650;</button>' +
+        '<button class="zb" data-down="' + e.id + '" title="to back">&#9660;</button>' +
         '<button class="x" data-x="' + e.id + '">&times;</button></span></div>' +
-        '<div class="mini" style="margin-bottom:8px">' + (e.hasBbox ? "bbox [" + e.bbox.join(", ") + "] " : "bez bbox ") +
+        '<div class="mini" style="margin-bottom:8px">' + (e.hasBbox ? "bbox [" + e.bbox.join(", ") + "] " : "no bbox ") +
         '&middot; <label style="cursor:pointer"><input type="checkbox" data-bb="' + e.id + '" ' + (e.hasBbox ? "checked" : "") + ' style="width:auto;vertical-align:middle"> bbox</label></div>' +
-        (e.type === "text" ? '<div class="field" style="margin-bottom:8px"><label class="lbl">text (verbatim, \\n = nowa linia)</label><textarea data-f="text" data-id="' + e.id + '" style="min-height:38px">' + esc(e.text) + "</textarea></div>" : "") +
+        (e.type === "text" ? '<div class="field" style="margin-bottom:8px"><label class="lbl">text (verbatim, \\n = new line)</label><textarea data-f="text" data-id="' + e.id + '" style="min-height:38px">' + esc(e.text) + "</textarea></div>" : "") +
         '<div class="field"><label class="lbl">desc <span class="ctr" data-ctr="' + e.id + '"></span></label><textarea data-f="desc" data-id="' + e.id + '">' + esc(e.desc) + "</textarea></div>";
       c.addEventListener("click", (ev) => { if (ev.target.closest("[data-x],[data-up],[data-down],[data-bb],textarea,input")) return; selectEl(e.id); });
       L.appendChild(c);
@@ -451,8 +451,8 @@ function buildEditor(node) {
   function bindInput(sel, fn) { const el = q(sel); if (el) el.oninput = () => fn(el.value); }
   function updateCounters() {
     const hc = q("[data-hldctr]");
-    if (hc) { const n = wordCount(hld); hc.textContent = n + "/50 słów"; hc.classList.toggle("over", n > 50); }
-    qa("[data-ctr]").forEach((s) => { const e = els.find((x) => x.id == s.dataset.ctr); if (!e) return; const n = wordCount(e.desc); s.textContent = n + "/60 słów"; s.classList.toggle("over", n > 60); });
+    if (hc) { const n = wordCount(hld); hc.textContent = n + "/50 words"; hc.classList.toggle("over", n > 50); }
+    qa("[data-ctr]").forEach((s) => { const e = els.find((x) => x.id == s.dataset.ctr); if (!e) return; const n = wordCount(e.desc); s.textContent = n + "/60 words"; s.classList.toggle("over", n > 60); });
   }
 
   function buildCaption() {
@@ -479,27 +479,27 @@ function buildEditor(node) {
 
   function renderValidation() {
     const box = q("[data-valbox]"), v = [];
-    if (hadLegacyStyle) v.push(["warn", "wczytano STARY format ze style_description (aesthetics/lighting/photo/paleta) — te pola NIE istnieją w v15 i zostały pominięte; przepisz styl prozą do high_level_description lub background"]);
-    if (!ar || !/^\d+:\d+$/.test(ar)) v.push(["err", "aspect_ratio musi być w formacie W:H"]);
-    if (!hld.trim()) v.push(["warn", "high_level_description jest puste"]);
-    else { if (wordCount(hld) > 50) v.push(["warn", "HLD przekracza 50 słów (" + wordCount(hld) + ")"]); if (/\b(this image (shows|depicts)|depicts|captures)\b/i.test(hld)) v.push(["warn", "HLD nie powinno zaczynać się od shows/depicts/captures — zacznij od podmiotu"]); }
-    if (WARM_RE.test(hld) || WARM_RE.test(bg)) v.push(["warn", 'słowo "warm" jako gradacja jest odradzane w fotorealizmie (amber/AI look) — opisz źródło światła konkretnie']);
-    if (BG_POST_RE.test(bg)) v.push(["warn", "background zawiera efekt post-processingu — przenieś do high_level_description"]);
-    if (BG_ARR_RE.test(bg)) v.push(["err", "background opisuje rozmieszczone meble/ludzi — to treść pierwszego planu, zrób z tego elementy"]);
+    if (hadLegacyStyle) v.push(["warn", "loaded a LEGACY format with style_description (aesthetics/lighting/photo/palette) — those fields do NOT exist in v15 and were dropped; rewrite the style as prose into high_level_description or background"]);
+    if (!ar || !/^\d+:\d+$/.test(ar)) v.push(["err", "aspect_ratio must be in W:H format"]);
+    if (!hld.trim()) v.push(["warn", "high_level_description is empty"]);
+    else { if (wordCount(hld) > 50) v.push(["warn", "HLD exceeds 50 words (" + wordCount(hld) + ")"]); if (/\b(this image (shows|depicts)|depicts|captures)\b/i.test(hld)) v.push(["warn", "HLD should not start with shows/depicts/captures — start with the subject"]); }
+    if (WARM_RE.test(hld) || WARM_RE.test(bg)) v.push(["warn", 'the word "warm" as a grade is discouraged in photorealism (amber/AI look) — describe the light source concretely']);
+    if (BG_POST_RE.test(bg)) v.push(["warn", "background contains a post-processing effect — move it to high_level_description"]);
+    if (BG_ARR_RE.test(bg)) v.push(["err", "background describes arranged furniture/people — that is foreground content, turn it into elements"]);
     let textCount = 0;
     els.forEach((e) => {
       const tag = "(" + e.type + " #" + e.id + ") ";
-      if (e.type === "text") { textCount++; if (!e.text.trim()) v.push(["warn", tag + "pusty text"]); }
-      if (wordCount(e.desc) > 60) v.push(["warn", tag + "desc > 60 słów (" + wordCount(e.desc) + ")"]);
-      if (RENDER_RE.test(e.desc)) v.push(["err", tag + "desc zawiera język kamery/cienia (DOF, lens, shadow…) — przenieś do HLD/background"]);
-      if (WARM_RE.test(e.desc)) v.push(["warn", tag + '"warm" w desc — odradzane']);
-      if (PART_WORDS.test(e.desc) && e.type === "obj") v.push(["warn", tag + "desc wygląda na pojedynczą część podmiotu — jeden podmiot = jeden element"]);
-      if (FLOOR_WORDS.test(e.desc)) v.push(["err", tag + "opis nawierzchni/podłogi/kałuży jako element — przenieś do background (inaczej renderer wkopie nogi w grunt)"]);
-      if (HEDGE_RE.test(e.desc)) v.push(["warn", tag + "hedging (such as/various/implied…) — commit do konkretnej wartości"]);
-      if (e.hasBbox) { const [y0, x0, y1, x1] = e.bbox; if (!(y0 < y1 && x0 < x1)) v.push(["err", tag + "bbox: wymagane y1<y2 oraz x1<x2"]); }
+      if (e.type === "text") { textCount++; if (!e.text.trim()) v.push(["warn", tag + "empty text"]); }
+      if (wordCount(e.desc) > 60) v.push(["warn", tag + "desc > 60 words (" + wordCount(e.desc) + ")"]);
+      if (RENDER_RE.test(e.desc)) v.push(["err", tag + "desc contains camera/shadow language (DOF, lens, shadow…) — move it to HLD/background"]);
+      if (WARM_RE.test(e.desc)) v.push(["warn", tag + '"warm" in desc — discouraged']);
+      if (PART_WORDS.test(e.desc) && e.type === "obj") v.push(["warn", tag + "desc looks like a single part of the subject — one subject = one element"]);
+      if (FLOOR_WORDS.test(e.desc)) v.push(["err", tag + "describing pavement/floor/puddle as an element — move it to background (otherwise the renderer sinks legs into the ground)"]);
+      if (HEDGE_RE.test(e.desc)) v.push(["warn", tag + "hedging (such as/various/implied…) — commit to a concrete value"]);
+      if (e.hasBbox) { const [y0, x0, y1, x1] = e.bbox; if (!(y0 < y1 && x0 < x1)) v.push(["err", tag + "bbox: requires y1<y2 and x1<x2"]); }
     });
-    if (textCount === 0 && BUILT_RE.test(hld + " " + bg)) v.push(["warn", "scena wygląda na built environment / designed artifact, a nie ma elementów text — realne sceny niosą tekst niemal wszędzie"]);
-    if (!v.length) { box.innerHTML = '<div class="v ok"><span class="ico">&#10003;</span><span>Brak ostrzeżeń — zgodne z wytycznymi v15</span></div>'; return; }
+    if (textCount === 0 && BUILT_RE.test(hld + " " + bg)) v.push(["warn", "the scene looks like a built environment / designed artifact but has no text elements — real scenes carry text almost everywhere"]);
+    if (!v.length) { box.innerHTML = '<div class="v ok"><span class="ico">&#10003;</span><span>No warnings — compliant with the v15 guidelines</span></div>'; return; }
     box.innerHTML = v.map(([k, m]) => '<div class="v ' + k + '"><span class="ico">' + (k === "err" ? "&times;" : "!") + "</span><span>" + esc(m) + "</span></div>").join("");
   }
 
@@ -520,10 +520,10 @@ function buildEditor(node) {
   q("[data-impload]").onclick = () => {
     const msg = q("[data-impmsg]");
     try { loadCaption(q("[data-imptxt]").value); impbar.style.display = "none"; msg.textContent = ""; fitFrame(); }
-    catch (e) { msg.style.color = "var(--err)"; msg.textContent = "Błąd parsowania JSON (" + e.message + ")"; }
+    catch (e) { msg.style.color = "var(--err)"; msg.textContent = "JSON parse error (" + e.message + ")"; }
   };
   const flash = (sel, on, off) => { const b = q(sel); b.textContent = on; setTimeout(() => (b.textContent = off), 1200); };
-  q("[data-copy]").onclick = () => { navigator.clipboard.writeText(JSON.stringify(buildCaption())); flash("[data-copy]", "Skopiowano ✓", "Kopiuj JSON (minified)"); };
+  q("[data-copy]").onclick = () => { navigator.clipboard.writeText(JSON.stringify(buildCaption())); flash("[data-copy]", "Copied ✓", "Copy JSON (minified)"); };
   q("[data-copypretty]").onclick = () => { navigator.clipboard.writeText(JSON.stringify(buildCaption(), null, 2)); flash("[data-copypretty]", "OK ✓", "Pretty"); };
   q("[data-dl]").onclick = () => { const blob = new Blob([JSON.stringify(buildCaption())], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "caption_v15.json"; a.click(); };
 
