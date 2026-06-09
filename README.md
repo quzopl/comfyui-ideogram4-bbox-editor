@@ -28,6 +28,10 @@ JSON string.
   legacy (style_description) captions to v15** (warning you that style fields are
   dropped — rewrite them as prose into HLD/background).
 - **Copy minified / Pretty / Download**.
+- **Optional `width` / `height` inputs** — set the actual target size. When both
+  are > 0 the editor canvas and the output's `aspect_ratio` follow `W:H` (e.g.
+  right-click → *convert to input* and wire a resolution node). `0` = use the
+  aspect ratio chosen in the editor.
 - **Output** — `prompt` (STRING): the live v15 caption JSON.
 
 ## v15 output format

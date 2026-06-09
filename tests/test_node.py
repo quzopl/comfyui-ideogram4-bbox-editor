@@ -41,3 +41,18 @@ def test_input_types_declares_caption_json():
     t = Node.INPUT_TYPES()
     assert "caption_json" in t["required"]
     assert t["required"]["caption_json"][0] == "STRING"
+    assert t["required"]["width"][0] == "INT"
+    assert t["required"]["height"][0] == "INT"
+
+
+def test_width_height_override_aspect_ratio():
+    raw = json.dumps({"aspect_ratio": "1:1", "high_level_description": "x",
+                      "compositional_deconstruction": {"background": "", "elements": []}})
+    (out,) = Node().build(caption_json=raw, width=1024, height=1280)
+    assert json.loads(out)["aspect_ratio"] == "4:5"
+
+
+def test_zero_size_keeps_editor_aspect_ratio():
+    raw = json.dumps({"aspect_ratio": "16:9", "compositional_deconstruction": {"elements": []}})
+    (out,) = Node().build(caption_json=raw, width=0, height=0)
+    assert json.loads(out)["aspect_ratio"] == "16:9"

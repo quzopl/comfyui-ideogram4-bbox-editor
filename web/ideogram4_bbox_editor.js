@@ -145,6 +145,22 @@ function buildEditor(node) {
   root.addEventListener("pointerdown", (e) => e.stopPropagation());
   root.addEventListener("wheel", (e) => e.stopPropagation());
 
+  // optional width/height widgets: when both > 0 they drive the aspect ratio
+  // (so the editor reflects the actual target size). 0 = use the editor's AR.
+  const wW = (node.widgets || []).find((w) => w.name === "width");
+  const hW = (node.widgets || []).find((w) => w.name === "height");
+  function syncFromWH() {
+    if (!wW || !hW) return false;
+    const w = Number(wW.value) || 0, h = Number(hW.value) || 0;
+    if (w > 0 && h > 0) { const g = gcd(w, h) || 1; setAR(w / g + ":" + h / g); return true; }
+    return false;
+  }
+  for (const W of [wW, hW]) {
+    if (!W) continue;
+    const prev = W.callback;
+    W.callback = function () { const r = prev ? prev.apply(this, arguments) : undefined; syncFromWH(); return r; };
+  }
+
   function arRatio() { const m = ar.match(/^(\d+):(\d+)$/); return m ? [parseInt(m[1]), parseInt(m[2])] : [1, 1]; }
   function setAR(val) {
     ar = val; q("[data-arcustom]").value = val;
@@ -413,6 +429,7 @@ function buildEditor(node) {
       try { loadCaption(widget.value); seeded = true; } catch (e) {}
     }
     if (!seeded && els.length === 0) addEl("obj");
+    syncFromWH();   // real W/H (if set) win over the caption's aspect ratio
     fitFrame();
   }, 0);
 }

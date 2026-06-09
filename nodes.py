@@ -3,10 +3,15 @@
 Renders a visual bbox/caption editor on the node (see web/ideogram4_bbox_editor.js)
 and outputs the assembled Ideogram-4 caption as a JSON string. The Python side is
 a thin validator/pass-through; all caption-building logic lives in the JS widget.
+
+Optional width/height inputs let the node carry the actual target size: when both
+are > 0 the output's `aspect_ratio` is overridden with the reduced `W:H` (e.g.
+connect a resolution node). 0 means "use the aspect ratio set in the editor".
 """
 from __future__ import annotations
 
 import json
+from math import gcd
 
 
 class Ideogram4BboxEditor:
@@ -18,6 +23,16 @@ class Ideogram4BboxEditor:
                 # caption JSON so it persists in the saved workflow and reaches
                 # the backend.
                 "caption_json": ("STRING", {"default": "{}", "multiline": True}),
+                "width": ("INT", {
+                    "default": 0, "min": 0, "max": 16384, "step": 8,
+                    "tooltip": "Target width. 0 = use the aspect ratio set in the editor. "
+                               "When both width and height are > 0 they override aspect_ratio (W:H). "
+                               "Right-click → convert to input to drive it from a resolution node.",
+                }),
+                "height": ("INT", {
+                    "default": 0, "min": 0, "max": 16384, "step": 8,
+                    "tooltip": "Target height. 0 = use the aspect ratio set in the editor.",
+                }),
             }
         }
 
@@ -27,7 +42,7 @@ class Ideogram4BboxEditor:
     CATEGORY = "Ideogram4"
     DESCRIPTION = "Visual bbox editor for the Ideogram-4 caption JSON. Outputs the caption as a string."
 
-    def build(self, caption_json: str):
+    def build(self, caption_json: str, width: int = 0, height: int = 0):
         raw = (caption_json or "").strip()
         if not raw:
             return ("{}",)
@@ -35,6 +50,10 @@ class Ideogram4BboxEditor:
             obj = json.loads(raw)
         except (json.JSONDecodeError, ValueError):
             return ("{}",)
+        # Real size overrides the editor's aspect_ratio with reduced W:H.
+        if isinstance(obj, dict) and width and height and width > 0 and height > 0:
+            g = gcd(int(width), int(height)) or 1
+            obj["aspect_ratio"] = f"{int(width) // g}:{int(height) // g}"
         return (json.dumps(obj, ensure_ascii=False),)
 
 
