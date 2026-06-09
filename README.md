@@ -4,7 +4,7 @@ A ComfyUI custom node that renders a visual bounding-box / caption editor **on t
 node itself** and outputs the assembled Ideogram-4 caption (**v15 format**) as a
 JSON string.
 
-![Ideogram4 Bbox Editor node](docs/screenshots/node.png)
+![Ideogram4 Bbox Editor node with a generated-image backdrop](docs/screenshots/node.png)
 
 ## Features
 
@@ -32,6 +32,12 @@ JSON string.
   are > 0 the editor canvas and the output's `aspect_ratio` follow `W:H` (e.g.
   right-click → *convert to input* and wire a resolution node). `0` = use the
   aspect ratio chosen in the editor.
+- **Generated-image backdrop** — after each run the latest generated image is
+  captured from the frontend and shown, scaled to fit, **behind the boxes** so you
+  can see where to nudge them before regenerating (no wiring — a real `IMAGE`
+  input would create a graph loop). Controls: **Auto rozmiar** (grid/aspect ratio
+  follow the image, else the connected `width`/`height`), a backdrop **opacity**
+  slider, and **Clear backdrop**. Picking a preset / custom `W:H` switches Auto off.
 - **Output** — `prompt` (STRING): the live v15 caption JSON.
 
 ## v15 output format
@@ -69,6 +75,12 @@ Add **Ideogram4 Bbox Editor** (category `Ideogram4`). Pick a ratio, add `obj` /
 `background`, and watch the validation panel. Wire the `prompt` output into a
 text encoder (e.g. `CLIPTextEncode`) or any string consumer. Pairs naturally with
 the AI Gallery metadata stack.
+
+![The editor with no backdrop — default editing state](docs/screenshots/editor.png)
+
+After you run the graph, the latest generated image appears as a backdrop and the
+grid snaps to its proportions, so you can see exactly where to nudge the boxes
+before the next run.
 
 ## Development
 

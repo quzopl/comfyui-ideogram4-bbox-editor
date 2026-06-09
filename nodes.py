@@ -21,8 +21,10 @@ class Ideogram4BboxEditor:
             "required": {
                 # Managed by the JS DOM widget; hidden in the UI. Holds the live
                 # caption JSON so it persists in the saved workflow and reaches
-                # the backend.
-                "caption_json": ("STRING", {"default": "{}", "multiline": True}),
+                # the backend. NOT multiline on purpose: a multiline STRING becomes
+                # a DOM textarea that `type="hidden"` can't fully hide, so it would
+                # show the raw JSON and shove the width/height widgets off-screen.
+                "caption_json": ("STRING", {"default": "{}"}),
                 "width": ("INT", {
                     "default": 0, "min": 0, "max": 16384, "step": 8,
                     "tooltip": "Target width. 0 = use the aspect ratio set in the editor. "

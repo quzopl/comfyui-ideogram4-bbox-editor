@@ -1,4 +1,24 @@
 const { app } = window.comfyAPI.app;
+const { api } = window.comfyAPI.api;
+
+// Live editor instances + the most recent generated image, captured from the
+// frontend (no graph wiring — see docs/.../image-backdrop-design.md for why an
+// IMAGE input would create a dependency loop).
+const EDITORS = new Set();
+let LAST_BG = null;
+
+function imageUrl(img) {
+  const p = new URLSearchParams({ filename: img.filename || "", subfolder: img.subfolder || "", type: img.type || "output" });
+  p.set("t", Date.now());           // bust cache so a re-run with same name refreshes
+  return api.apiURL("/view?" + p.toString());
+}
+
+api.addEventListener("executed", (e) => {
+  const imgs = e.detail?.output?.images;
+  if (!imgs || !imgs.length) return;        // keep the last image-bearing node of the run
+  LAST_BG = imageUrl(imgs[imgs.length - 1]);
+  EDITORS.forEach((fn) => { try { fn(LAST_BG); } catch (_) {} });
+});
 
 const STYLE = `
 .ideo4{--bg:#0e0f12;--panel:#16181d;--panel2:#1d2026;--line:#2a2e36;--txt:#e6e7ea;
@@ -58,6 +78,12 @@ const STYLE = `
 .ideo4 .v .ico{font-weight:700}
 .ideo4 .v.warn .ico{color:var(--warn)} .ideo4 .v.err .ico{color:var(--err)}
 .ideo4 .v.ok{border-color:var(--ok);background:rgba(74,184,106,.08);color:var(--ok)}
+.ideo4 .bgbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--mut)}
+.ideo4 .bgbar label.chk{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--txt)}
+.ideo4 .bgbar input[type=checkbox]{width:auto}
+.ideo4 .bgbar input[type=range]{width:120px}
+.ideo4 .bgbar .badge{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:5px;border:1px solid var(--line);background:var(--panel2)}
+.ideo4 .bgbar .badge.on{border-color:var(--ok);color:var(--ok)}
 `;
 
 function injectStyleOnce() {
@@ -95,9 +121,19 @@ const BUILT_RE = /\b(shop|stall|restaurant|store|sign|market|cafe|bar|workshop|p
 
 function buildEditor(node) {
   const widget = (node.widgets || []).find((w) => w.name === "caption_json");
-  if (widget) { widget.type = "hidden"; widget.computeSize = () => [0, -4]; }
+  // Snapshot the saved caption NOW, before any render() (e.g. via ResizeObserver)
+  // can overwrite widget.value with the empty initial state and clobber it.
+  const initialCaption = widget && widget.value != null ? String(widget.value) : "";
+  let initDone = false;
+  if (widget) {
+    widget.type = "hidden";
+    widget.computeSize = () => [0, -4];
+    widget.hidden = true;
+    if (widget.element) widget.element.style.display = "none"; // belt & suspenders for DOM-backed widgets
+  }
 
   let ar = "1:1", hld = "", bg = "", els = [], sel = null, uid = 0, hadLegacyStyle = false;
+  let autoAR = true, bgUrl = null, bgOpacity = 0.85;
 
   const root = document.createElement("div");
   root.className = "ideo4";
@@ -124,7 +160,13 @@ function buildEditor(node) {
       </div>
     </div>
     <div class="canvas-host"><div class="frame" data-frame></div></div>
-    <div class="hint">Klik na boksie = wybór + przeciąganie (środek przesuwa, róg skaluje). Powtórny klik cykluje nakładające się boksy. Strzałki na karcie = z-order. Współrzędne 0–1000.</div>
+    <div class="bgbar">
+      <label class="chk" title="Proporcje siatki z wygenerowanego obrazu (a gdy go brak — z width/height)"><input type="checkbox" data-auto checked> Auto rozmiar</label>
+      <span class="badge" data-bgstat>brak podkładu</span>
+      <span style="display:flex;gap:5px;align-items:center">krycie <input type="range" data-bgop min="0.2" max="1" step="0.05" value="0.85"></span>
+      <button class="btn" data-bgclear>Wyczyść tło</button>
+    </div>
+    <div class="hint">Klik na boksie = wybór + przeciąganie (środek przesuwa, róg skaluje). Powtórny klik cykluje nakładające się boksy. Strzałki na karcie = z-order. Współrzędne 0–1000. Po generacji obraz wczytuje się jako podkład.</div>
     <div class="list" data-list></div>
     <div class="out">
       <div class="vList" data-valbox></div>
@@ -151,6 +193,7 @@ function buildEditor(node) {
   const hW = (node.widgets || []).find((w) => w.name === "height");
   function syncFromWH() {
     if (!wW || !hW) return false;
+    if (!autoAR || bgUrl) return false;   // image (if present) and manual mode take priority
     const w = Number(wW.value) || 0, h = Number(hW.value) || 0;
     if (w > 0 && h > 0) { const g = gcd(w, h) || 1; setAR(w / g + ":" + h / g); return true; }
     return false;
@@ -159,6 +202,45 @@ function buildEditor(node) {
     if (!W) continue;
     const prev = W.callback;
     W.callback = function () { const r = prev ? prev.apply(this, arguments) : undefined; syncFromWH(); return r; };
+  }
+
+  // backdrop: paint the generated image behind the bboxes, scaled to the frame.
+  function applyBackdrop() {
+    const stat = q("[data-bgstat]");
+    if (!bgUrl) {
+      frame.style.backgroundImage = "";   // fall back to the CSS grid-only frame
+      frame.style.backgroundSize = ""; frame.style.backgroundRepeat = ""; frame.style.backgroundPosition = "";
+      if (stat) { stat.textContent = "brak podkładu"; stat.classList.remove("on"); }
+      return;
+    }
+    const dim = (1 - bgOpacity).toFixed(2);
+    frame.style.backgroundImage =
+      'linear-gradient(var(--grid) 1px,transparent 1px),' +
+      'linear-gradient(90deg,var(--grid) 1px,transparent 1px),' +
+      'linear-gradient(rgba(26,29,34,' + dim + '),rgba(26,29,34,' + dim + ')),' +
+      'url("' + bgUrl + '")';
+    frame.style.backgroundSize = "10% 10%,10% 10%,cover,cover";
+    frame.style.backgroundRepeat = "repeat,repeat,no-repeat,no-repeat";
+    frame.style.backgroundPosition = "0 0,0 0,center,center";
+    if (stat) { stat.textContent = "podkład wczytany"; stat.classList.add("on"); }
+  }
+  function onNewImage(url) {
+    bgUrl = url;
+    const im = new Image();
+    im.onload = () => {
+      if (autoAR && im.naturalWidth && im.naturalHeight) {
+        const g = gcd(im.naturalWidth, im.naturalHeight) || 1;
+        setAR(im.naturalWidth / g + ":" + im.naturalHeight / g);   // setAR → fitFrame → render
+      }
+      applyBackdrop();
+    };
+    im.onerror = () => applyBackdrop();
+    im.src = url;
+  }
+  function manualOverride() { autoAR = false; const cb = q("[data-auto]"); if (cb) cb.checked = false; }
+  function reSyncAuto() {
+    if (!autoAR) return;
+    if (bgUrl) { onNewImage(bgUrl); } else if (!syncFromWH()) { fitFrame(); }
   }
 
   function arRatio() { const m = ar.match(/^(\d+):(\d+)$/); return m ? [parseInt(m[1]), parseInt(m[2])] : [1, 1]; }
@@ -249,15 +331,27 @@ function buildEditor(node) {
     if (ev.target.classList.contains("se")) return;
     ev.preventDefault();
     const r = frame.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    // topmost first (higher z wins; smaller area breaks ties so a small box on
+    // top of a big one is grabbable).
     const hits = els.filter((e) => {
       if (!e.hasBbox) return false;
       const p = pxFromBbox(e.bbox);
       return px >= p.left && px <= p.left + p.width && py >= p.top && py <= p.top + p.height;
-    }).sort((a, b) => area(a) - area(b));
+    }).sort((a, b) => b.z - a.z || area(a) - area(b));
     if (!hits.length) return;
     const key = hits.map((h) => h.id).join(",");
-    if (key === lastHit) lastIdx = (lastIdx + 1) % hits.length; else { lastHit = key; lastIdx = 0; }
-    const chosen = hits[lastIdx];
+    let chosen;
+    if (key === lastHit) {
+      // repeated click on the same overlapping stack → reveal the box underneath
+      lastIdx = (lastIdx + 1) % hits.length;
+      chosen = hits[lastIdx];
+    } else {
+      // fresh click: re-grab the currently selected box if it's here, else topmost
+      lastHit = key;
+      const si = hits.findIndex((h) => h.id === sel);
+      lastIdx = si >= 0 ? si : 0;
+      chosen = hits[lastIdx];
+    }
     selectEl(chosen.id); startDrag(chosen, ev, false);
   }, true);
 
@@ -265,9 +359,11 @@ function buildEditor(node) {
     const dnode = frame.querySelector('.bx[data-id="' + e.id + '"]');
     if (!dnode) return;
     const startX = ev.clientX, startY = ev.clientY, o = pxFromBbox(e.bbox), pid = ev.pointerId;
+    let moved = false;
     try { dnode.setPointerCapture(pid); } catch (_) {}
     const move = (m) => {
       let dx = m.clientX - startX, dy = m.clientY - startY, left = o.left, top = o.top, w = o.width, h = o.height;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
       if (isHandle) { w = Math.max(8, o.width + dx); h = Math.max(8, o.height + dy); } else { left = o.left + dx; top = o.top + dy; }
       left = Math.max(0, Math.min(frame.clientWidth - w, left)); top = Math.max(0, Math.min(frame.clientHeight - h, top));
       dnode.style.left = left + "px"; dnode.style.top = top + "px"; dnode.style.width = w + "px"; dnode.style.height = h + "px";
@@ -276,6 +372,7 @@ function buildEditor(node) {
     const up = () => {
       try { dnode.releasePointerCapture(pid); } catch (_) {}
       dnode.removeEventListener("pointermove", move); dnode.removeEventListener("pointerup", up);
+      if (moved) lastHit = null; // after a real drag, next click re-evaluates fresh (no cycle)
       renderJSON(); renderValidation();
     };
     dnode.addEventListener("pointermove", move); dnode.addEventListener("pointerup", up);
@@ -302,7 +399,13 @@ function buildEditor(node) {
     if (j < 0 || j >= sorted.length) return;
     const t = sorted[i].z; sorted[i].z = sorted[j].z; sorted[j].z = t; sel = id; render();
   }
-  function addEl(type) { uid++; els.push({ id: uid, type, hasBbox: true, bbox: defBbox(type), desc: "", text: "", z: uid }); sel = uid; render(); }
+  function addEl(type) {
+    uid++;
+    // cascade new boxes so they don't land exactly on top of existing ones
+    const off = Math.min(els.length, 8) * 30, b = defBbox(type).slice();
+    if (off) { b[0] = clamp(b[0] + off); b[1] = clamp(b[1] + off); b[2] = clamp(b[2] + off); b[3] = clamp(b[3] + off); }
+    els.push({ id: uid, type, hasBbox: true, bbox: b, desc: "", text: "", z: uid }); sel = uid; render();
+  }
 
   function renderList() {
     const L = q("[data-list]"); L.innerHTML = "";
@@ -327,7 +430,7 @@ function buildEditor(node) {
       c.addEventListener("click", (ev) => { if (ev.target.closest("[data-x],[data-up],[data-down],[data-bb],textarea,input")) return; selectEl(e.id); });
       L.appendChild(c);
     });
-    bindInput("[data-far]", (v) => { if (/^\d+:\d+$/.test(v.trim())) setAR(v.trim()); });
+    bindInput("[data-far]", (v) => { if (/^\d+:\d+$/.test(v.trim())) { manualOverride(); setAR(v.trim()); } });
     bindInput("[data-fhld]", (v) => { hld = v; updateCounters(); renderJSON(); renderValidation(); });
     bindInput("[data-fbg]", (v) => { bg = v; renderJSON(); renderValidation(); });
     qa("[data-x]").forEach((b) => (b.onclick = () => { els = els.filter((x) => x.id != b.dataset.x); if (sel == b.dataset.x) sel = null; render(); }));
@@ -370,7 +473,7 @@ function buildEditor(node) {
   function renderJSON() {
     const cap = buildCaption();
     q("[data-json]").textContent = JSON.stringify(cap, null, 2);
-    if (widget) widget.value = JSON.stringify(cap);
+    if (widget && initDone) widget.value = JSON.stringify(cap); // don't clobber the saved value before init reads it
     if (node.graph) node.graph.setDirtyCanvas(true, true);
   }
 
@@ -401,8 +504,15 @@ function buildEditor(node) {
   }
 
   // toolbar wiring
-  q("[data-ar]").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b) setAR(b.dataset.arv); });
-  q("[data-arcustom]").addEventListener("change", (ev) => { const v = ev.target.value.trim(); if (/^\d+:\d+$/.test(v)) setAR(v); });
+  q("[data-ar]").addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b) { manualOverride(); setAR(b.dataset.arv); } });
+  q("[data-arcustom]").addEventListener("change", (ev) => { const v = ev.target.value.trim(); if (/^\d+:\d+$/.test(v)) { manualOverride(); setAR(v); } });
+  // backdrop controls
+  q("[data-auto]").addEventListener("change", (ev) => { autoAR = ev.target.checked; reSyncAuto(); });
+  q("[data-bgop]").addEventListener("input", (ev) => { bgOpacity = parseFloat(ev.target.value); applyBackdrop(); });
+  q("[data-bgclear]").addEventListener("click", () => { bgUrl = null; applyBackdrop(); if (autoAR) reSyncAuto(); });
+  EDITORS.add(onNewImage);
+  const onRemoved = node.onRemoved;
+  node.onRemoved = function () { EDITORS.delete(onNewImage); return onRemoved ? onRemoved.apply(this, arguments) : undefined; };
   qa("[data-add]").forEach((b) => (b.onclick = () => addEl(b.dataset.add)));
   const impbar = q("[data-impbar]");
   q("[data-imp]").onclick = () => { impbar.style.display = impbar.style.display === "none" ? "flex" : "none"; };
@@ -425,12 +535,15 @@ function buildEditor(node) {
 
   setTimeout(() => {
     let seeded = false;
-    if (widget && widget.value && widget.value.trim() && widget.value.trim() !== "{}") {
-      try { loadCaption(widget.value); seeded = true; } catch (e) {}
+    if (initialCaption && initialCaption.trim() && initialCaption.trim() !== "{}") {
+      try { loadCaption(initialCaption); seeded = true; } catch (e) {}
     }
     if (!seeded && els.length === 0) addEl("obj");
-    syncFromWH();   // real W/H (if set) win over the caption's aspect ratio
+    initDone = true;            // from here renderJSON may persist to the widget
+    syncFromWH();               // real W/H (if set) win over the caption's aspect ratio
     fitFrame();
+    if (LAST_BG) onNewImage(LAST_BG);   // adopt the most recent generated image
+    renderJSON();               // sync widget.value with the loaded state
   }, 0);
 }
 
