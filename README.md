@@ -1,29 +1,54 @@
 # ComfyUI — Ideogram4 Bbox Editor
 
 A ComfyUI custom node that renders a visual bounding-box / caption editor **on the
-node itself** and outputs the assembled Ideogram-4 caption as a JSON string.
+node itself** and outputs the assembled Ideogram-4 caption (**v15 format**) as a
+JSON string.
 
 ![Ideogram4 Bbox Editor node](docs/screenshots/node.png)
 
 ## Features
 
-- **On-node visual editor** — no separate window. Draw, move and resize regions
-  directly on the node.
-- **Aspect-ratio presets** — 4:5 / 16:9 / 1:1 for the working canvas.
-- **0–1000 grid** — bounding boxes stored as `[ymin, xmin, ymax, xmax]` (the
-  Ideogram-4 convention), independent of the canvas pixel size.
-- **Per-element controls** — `obj` / `text` type, `desc`, literal `text` (for
-  text regions), hex `color_palette` with live swatches, and **z-order** (▲/▼
-  to choose what sits on top).
-- **Overlap-friendly selection** — click cycles through stacked boxes
-  (smallest first); only the selected box is draggable, so overlapping regions
-  are easy to grab.
-- **Caption-level fields** — collapsible section for `high_level_description`,
-  `style_description` (aesthetics / lighting / photo / medium / palette) and
-  `background`.
-- **Paste-import** — drop in a caption JSON (even doubly-encoded, where the
-  whole object is stuffed into `high_level_description` — it gets unwrapped).
-- **Output** — `prompt` (STRING): the live caption JSON.
+- **On-node visual editor** — draw, move and resize regions directly on the node
+  (corner handle resizes, centre drags; click cycles through overlapping boxes).
+- **Aspect-ratio presets** — `1:1 / 4:5 / 9:16 / 16:9 / 3:1` plus a free **custom
+  `W:H`** field. The ratio drives default bbox shapes.
+- **0–1000 grid** — bboxes as `[ymin, xmin, ymax, xmax]`, independent of pixels.
+- **Per-element controls** — `obj` / `text` type, **optional bbox** (toggle per
+  element), literal multi-line `text` for text regions, `desc`, and **z-order**
+  (▲/▼ choose what sits on top).
+- **Caption-level fields** — `aspect_ratio`, `high_level_description`,
+  `background` (scene shell only).
+- **Live validation panel** — flags v15 guideline issues as you type: word caps
+  (HLD ≤ 50, desc ≤ 60), camera/shadow language in `desc`, floor/ground as an
+  element, `"warm"` grading, post-processing in `background`, furniture/people
+  smuggled into `background`, missing `text` in built environments, bad bbox, etc.
+- **Word counters** on HLD and each `desc`.
+- **Smart import** — paste any caption JSON; it unwraps `caption`/`data`/`result`
+  wrappers, doubly-encoded JSON, derives the ratio from `size`, and **converts
+  legacy (style_description) captions to v15** (warning you that style fields are
+  dropped — rewrite them as prose into HLD/background).
+- **Copy minified / Pretty / Download**.
+- **Output** — `prompt` (STRING): the live v15 caption JSON.
+
+## v15 output format
+
+```json
+{
+  "aspect_ratio": "4:5",
+  "high_level_description": "…",
+  "compositional_deconstruction": {
+    "background": "…",
+    "elements": [
+      { "type": "obj",  "bbox": [40, 240, 1000, 760], "desc": "…" },
+      { "type": "text", "bbox": [110, 300, 250, 700], "text": "QUZ0", "desc": "…" }
+    ]
+  }
+}
+```
+
+`bbox` is `[ymin, xmin, ymax, xmax]` on a 0–1000 grid and is **optional** per
+element. v15 has **no** `style_description` and **no** `color_palette` — describe
+style as prose inside `high_level_description` / `background`.
 
 ## Install
 
@@ -35,36 +60,11 @@ git clone https://github.com/quzopl/comfyui-ideogram4-bbox-editor.git
 
 ## Usage
 
-Add **Ideogram4 Bbox Editor** (category `Ideogram4`). Build your scene:
-
-- **+ obj / + text** — add a region; drag its centre to move, drag the corner
-  handle to resize.
-- Click a region (or its card) to select it; click again on overlapping boxes
-  to cycle. **▲ / ▼** on a card change stacking order.
-- Fill **desc** / **text** / **palette** per element, and open **caption
-  fields** for the high-level description, style and background.
-- **Paste JSON** to load an existing caption.
-
-Wire the `prompt` output into a text encoder (e.g. `CLIPTextEncode`) or any
-string consumer. Pairs naturally with the AI Gallery metadata stack.
-
-## Output format
-
-```json
-{
-  "high_level_description": "…",
-  "style_description": { "aesthetics": "…", "lighting": "…", "photo": "…", "medium": "photograph", "color_palette": ["#2A2520"] },
-  "compositional_deconstruction": {
-    "background": "…",
-    "elements": [
-      { "type": "obj",  "bbox": [40, 240, 1000, 760], "desc": "…", "color_palette": ["#2A2520"] },
-      { "type": "text", "bbox": [110, 300, 250, 700], "text": "QUZ0", "desc": "…" }
-    ]
-  }
-}
-```
-
-`bbox` is `[ymin, xmin, ymax, xmax]` on a 0–1000 grid.
+Add **Ideogram4 Bbox Editor** (category `Ideogram4`). Pick a ratio, add `obj` /
+`text` regions, fill `desc` / `text`, write `high_level_description` and
+`background`, and watch the validation panel. Wire the `prompt` output into a
+text encoder (e.g. `CLIPTextEncode`) or any string consumer. Pairs naturally with
+the AI Gallery metadata stack.
 
 ## Development
 
