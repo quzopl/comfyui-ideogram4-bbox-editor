@@ -133,6 +133,19 @@ def test_plain_caption_stays_hld():
     assert fl["high_level_description"] == "a quiet harbour at dawn"
 
 
+def test_regions_input_gives_labeled_boxes_with_prose_hld():
+    # prose caption -> HLD, region string -> labeled boxes (the user's case)
+    fl = ig4._florence_caption_obj(
+        "a busy street at dusk",
+        None, None, 1024, 1024,
+        florence_regions="man<loc_393><loc_159><loc_768><loc_998>street light<loc_305><loc_98><loc_402><loc_600>",
+    )
+    assert fl["high_level_description"] == "a busy street at dusk"
+    els = fl["compositional_deconstruction"]["elements"]
+    assert [e["desc"] for e in els] == ["man", "street light"]
+    assert all(e["type"] == "obj" and len(e["bbox"]) == 4 for e in els)
+
+
 # ---- node interface --------------------------------------------------------
 def test_input_types():
     t = Node.INPUT_TYPES()
@@ -142,6 +155,7 @@ def test_input_types():
     assert t["optional"]["import_json"][0] == "STRING"
     assert t["optional"]["florence_caption"][0] == "STRING"
     assert t["optional"]["florence_data"][0] == "JSON"
+    assert t["optional"]["florence_regions"][0] == "STRING"
 
 
 def test_return_signature():

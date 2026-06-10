@@ -200,15 +200,15 @@
         {
           "name": "caption",
           "type": "STRING",
-          "links": [],
+          "links": [
+            7
+          ],
           "slot_index": 2
         },
         {
           "name": "data",
           "type": "JSON",
-          "links": [
-            7
-          ],
+          "links": [],
           "slot_index": 3
         }
       ],
@@ -227,7 +227,7 @@
         1,
         "fixed"
       ],
-      "title": "Florence2 — regions (boxes)"
+      "title": "Florence2 — regions (caption -> labeled boxes)"
     },
     {
       "id": 5,
@@ -264,6 +264,12 @@
         {
           "name": "florence_data",
           "type": "JSON",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "florence_regions",
+          "type": "STRING",
           "link": 7,
           "shape": 7
         }
@@ -391,10 +397,10 @@
     [
       7,
       4,
-      3,
+      2,
       5,
-      3,
-      "JSON"
+      4,
+      "STRING"
     ],
     [
       8,

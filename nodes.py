@@ -204,18 +204,21 @@ def _loc_elements(text):
     return out
 
 
-def _florence_caption_obj(florence_caption, florence_data, image, width, height):
-    """Assemble a v15 caption from Florence-2 outputs, or None when nothing usable."""
+def _florence_caption_obj(florence_caption, florence_data, image, width, height, florence_regions=""):
+    """Assemble a v15 caption from Florence-2 outputs, or None when nothing usable.
+
+    Elements come from (in priority): the `florence_regions` raw region string, a
+    loc-string accidentally wired into `florence_caption`, then `florence_data`.
+    high_level_description is the prose caption (unless it was itself a loc-string).
+    """
     cap_text = (florence_caption or "").strip()
+    reg_text = (florence_regions or "").strip()
     W, H = _image_dims(image) if image is not None else (int(width or 0), int(height or 0))
-    # A region-task `caption` is the raw "label<loc_..>" string: parse it to labeled
-    # elements (recovers the per-region labels that `data` drops) instead of dumping
-    # it into high_level_description. <loc_> coords are normalized, no image needed.
-    loc_els = _loc_elements(cap_text)
-    if loc_els:
-        els, cap_text = loc_els, ""
-    else:
-        els = _florence_elements(florence_data, W, H) if florence_data is not None else []
+
+    cap_loc = _loc_elements(cap_text)            # caption mis-wired with a region string?
+    els = _loc_elements(reg_text) or cap_loc or (_florence_elements(florence_data, W, H) if florence_data is not None else [])
+    hld = "" if cap_loc else cap_text            # don't dump a raw loc-string into the HLD
+    cap_text = hld
     if not cap_text and not els:
         return None
     g = gcd(W, H) if W > 0 and H > 0 else 0
@@ -373,7 +376,15 @@ class Ideogram4BboxEditor:
                 }),
                 "florence_data": ("JSON", {
                     "tooltip": "Florence2Run `data` (region/OCR boxes). Auto-placed as elements; "
-                               "needs the `image` input connected (boxes are in image pixel space).",
+                               "needs the `image` input connected (boxes are in image pixel space). "
+                               "Note: kijai's `data` has no per-region labels for OD/dense — use "
+                               "`florence_regions` for labeled boxes.",
+                }),
+                "florence_regions": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "A region task's raw `caption` (label<loc_..> string). Parsed into "
+                               "labeled boxes (desc = label) — recovers labels that `data` drops. "
+                               "Coords are normalized, so no `image` needed.",
                 }),
             },
         }
@@ -386,7 +397,8 @@ class Ideogram4BboxEditor:
                    "a preview image, pixel-space bounding boxes (SAM3/crop), and the resolved size.")
 
     def build(self, caption_json: str, width: int = 0, height: int = 0,
-              image=None, import_json: str = "", florence_caption: str = "", florence_data=None):
+              image=None, import_json: str = "", florence_caption: str = "", florence_data=None,
+              florence_regions: str = ""):
         obj = _apply_size(_parse_caption(caption_json), width, height)
         prompt = json.dumps(obj, ensure_ascii=False) if obj else "{}"
         W, H = _resolve_canvas(obj, width, height)
@@ -405,7 +417,7 @@ class Ideogram4BboxEditor:
                     ui["caption"] = [json.dumps(cap, ensure_ascii=False)]
             except (json.JSONDecodeError, ValueError):
                 pass
-        fl = _florence_caption_obj(florence_caption, florence_data, image, width, height)
+        fl = _florence_caption_obj(florence_caption, florence_data, image, width, height, florence_regions)
         if fl is not None:
             ui["florence"] = [json.dumps(fl, ensure_ascii=False)]
         return {"ui": ui, "result": (prompt, preview, bboxes, W, H)}
