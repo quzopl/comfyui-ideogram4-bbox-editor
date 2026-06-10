@@ -46,6 +46,14 @@ JSON string.
   slider, and **Clear backdrop**. Picking a preset / custom `W:H` switches Auto off.
 - **Optional `image` input** — a reference image (e.g. `LoadImage`): dimmed behind
   the `preview` output and shown as the editor backdrop (loads on run).
+- **Florence-2 auto-fill** — seed the editor from an image without embedding the
+  model: wire [`comfyui-florence2`](https://github.com/kijai/ComfyUI-Florence2)'s
+  `Florence2Run` outputs into `florence_caption` (→ `high_level_description`) and
+  `florence_data` (→ region/OCR boxes as elements; needs `image` connected so the
+  pixel boxes can be normalized). Auto-fill re-applies **only when the Florence
+  output changes**, so re-runs don't clobber your edits. (kijai's `data` carries
+  labels only for `caption_to_phrase_grounding` and `ocr_with_region`; `OD` /
+  `dense_region_caption` auto-place boxes with empty `desc`.)
 - **Outputs**:
   - `prompt` (STRING) — the live caption JSON.
   - `preview` (IMAGE) — boxes + numbered tags + `desc`/`text` rendered over the

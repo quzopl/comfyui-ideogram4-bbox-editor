@@ -74,6 +74,42 @@ def test_pixel_bboxes_skips_missing_and_empty():
     assert ig4._pixel_bboxes(obj, 1024, 1024) == []  # bbox-less -> no frame
 
 
+# ---- florence-2 ingest -----------------------------------------------------
+def test_florence_grounding_dict_with_labels():
+    data = {"bboxes": [[0, 0, 500, 1000]], "labels": ["a dog"]}
+    out = ig4._florence_elements(data, 1000, 1000)
+    assert out == [{"type": "obj", "bbox": [0, 0, 1000, 500], "desc": "a dog"}]
+
+
+def test_florence_bare_box_list_wrapped():
+    data = [[[0, 0, 500, 1000], [200, 100, 700, 300]]]  # OD/dense: boxes, no labels, wrapped one level
+    out = ig4._florence_elements(data, 1000, 1000)
+    assert [e["type"] for e in out] == ["obj", "obj"]
+    assert out[0]["bbox"] == [0, 0, 1000, 500] and out[0]["desc"] == ""
+
+
+def test_florence_ocr_quad_to_text():
+    data = [{"label": "QUZ0", "box": [100, 50, 300, 50, 300, 150, 100, 150]}]  # 8-num quad
+    out = ig4._florence_elements(data, 1000, 1000)
+    assert out == [{"type": "text", "bbox": [50, 100, 150, 300], "text": "QUZ0", "desc": ""}]
+
+
+def test_florence_needs_dims():
+    assert ig4._florence_elements({"bboxes": [[0, 0, 1, 1]], "labels": ["x"]}, 0, 0) == []
+
+
+def test_florence_caption_obj_assembles():
+    fl = ig4._florence_caption_obj("a scene", {"bboxes": [[0, 0, 512, 512]], "labels": ["x"]},
+                                   None, 1024, 1024)
+    assert fl["aspect_ratio"] == "1:1"
+    assert fl["high_level_description"] == "a scene"
+    assert fl["compositional_deconstruction"]["elements"][0]["desc"] == "x"
+
+
+def test_florence_caption_obj_none_when_empty():
+    assert ig4._florence_caption_obj("", None, None, 0, 0) is None
+
+
 # ---- node interface --------------------------------------------------------
 def test_input_types():
     t = Node.INPUT_TYPES()
@@ -81,6 +117,8 @@ def test_input_types():
     assert t["required"]["width"][0] == "INT" and t["required"]["height"][0] == "INT"
     assert t["optional"]["image"][0] == "IMAGE"
     assert t["optional"]["import_json"][0] == "STRING"
+    assert t["optional"]["florence_caption"][0] == "STRING"
+    assert t["optional"]["florence_data"][0] == "JSON"
 
 
 def test_return_signature():

@@ -571,10 +571,16 @@ function buildEditor(node) {
   q("[data-copypretty]").onclick = () => { navigator.clipboard.writeText(JSON.stringify(buildCaption(), null, 2)); flash("[data-copypretty]", "OK ✓", "Pretty"); };
   q("[data-dl]").onclick = () => { const blob = new Blob([JSON.stringify(buildCaption())], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "caption_v15.json"; a.click(); };
 
-  // per-node onExecuted payload (from build()'s ui): import_json caption, reference
-  // image backdrop, and resolved dims.
+  // per-node onExecuted payload (from build()'s ui): Florence-2 auto-fill,
+  // import_json caption, reference image backdrop, and resolved dims.
+  let lastFlorence = null;
   node.__ig4_exec = (m) => {
     if (!m) return;
+    // Florence-2 auto-fill — only when it changed, so re-runs don't clobber edits.
+    if (m.florence && m.florence[0] && m.florence[0] !== lastFlorence) {
+      lastFlorence = m.florence[0];
+      try { loadCaption(m.florence[0]); fitFrame(); } catch (e) {}
+    }
     if (m.caption && m.caption[0]) { try { loadCaption(m.caption[0]); fitFrame(); } catch (e) {} }
     if (m.bg_image && m.bg_image[0]) onNewImage(imageUrl(m.bg_image[0]));
     else if (m.dims && m.dims.length === 2 && autoAR && !bgUrl) {

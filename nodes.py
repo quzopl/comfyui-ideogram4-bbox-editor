@@ -108,6 +108,90 @@ def _pixel_bboxes(obj: dict, W: int, H: int):
     return [boxes] if boxes else []
 
 
+def _image_dims(image):
+    """(W, H) from an IMAGE tensor shaped (B, H, W, C). (0, 0) on failure."""
+    try:
+        return int(image.shape[2]), int(image.shape[1])
+    except Exception:
+        return 0, 0
+
+
+def _florence_elements(data, W: int, H: int):
+    """Convert Florence2Run `data` (pixel space) to v15 caption elements.
+
+    Handles: {bboxes:[...], labels:[...]} (grounding), bare box lists
+    [[x0,y0,x1,y1],...] possibly wrapped one level (OD / dense / region_proposal,
+    no labels), and [{label, box}, ...] for OCR (box may be a 4-rect or an 8-quad).
+    """
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except (json.JSONDecodeError, ValueError):
+            return []
+    if not data or W <= 0 or H <= 0:
+        return []
+
+    found = []  # (box, label, is_ocr)
+
+    def collect(d):
+        if isinstance(d, dict):
+            if "bboxes" in d:
+                labels = d.get("labels") or []
+                for i, b in enumerate(d["bboxes"]):
+                    found.append((b, labels[i] if i < len(labels) else "", False))
+            elif "box" in d:  # OCR {label, box}
+                found.append((d["box"], d.get("label", ""), True))
+        elif isinstance(d, (list, tuple)):
+            if d and all(isinstance(x, (int, float)) for x in d) and len(d) in (4, 8):
+                found.append((list(d), "", False))   # a single box
+            else:
+                for it in d:
+                    collect(it)
+
+    collect(data)
+
+    def n(v, dim):
+        return int(max(0, min(1000, round(v / dim * 1000.0))))
+
+    out = []
+    for box, label, is_ocr in found:
+        if not isinstance(box, (list, tuple)):
+            continue
+        if len(box) == 8:
+            xs, ys = box[0::2], box[1::2]
+            x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
+        elif len(box) == 4:
+            x0, y0, x1, y1 = box
+        else:
+            continue
+        x0, x1 = sorted((float(x0), float(x1)))
+        y0, y1 = sorted((float(y0), float(y1)))
+        el = {"type": "text" if is_ocr else "obj", "bbox": [n(y0, H), n(x0, W), n(y1, H), n(x1, W)]}
+        if is_ocr:
+            el["text"] = str(label or "")
+            el["desc"] = ""
+        else:
+            el["desc"] = str(label or "")
+        out.append(el)
+    return out
+
+
+def _florence_caption_obj(florence_caption, florence_data, image, width, height):
+    """Assemble a v15 caption from Florence-2 outputs, or None when nothing usable."""
+    cap_text = (florence_caption or "").strip()
+    W, H = _image_dims(image) if image is not None else (int(width or 0), int(height or 0))
+    els = _florence_elements(florence_data, W, H) if florence_data is not None else []
+    if not cap_text and not els:
+        return None
+    g = gcd(W, H) if W > 0 and H > 0 else 0
+    ar = f"{W // g}:{H // g}" if g else "1:1"
+    return {
+        "aspect_ratio": ar,
+        "high_level_description": cap_text,
+        "compositional_deconstruction": {"background": "", "elements": els},
+    }
+
+
 # --------------------------------------------------------------------------- #
 # heavy helpers (lazy imports)
 # --------------------------------------------------------------------------- #
@@ -248,6 +332,14 @@ class Ideogram4BboxEditor:
                     "tooltip": "Optional caption JSON loaded into the editor on run. The output "
                                "always reflects the editor, never this raw input.",
                 }),
+                "florence_caption": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Florence2Run `caption` -> high_level_description (auto-fill on run).",
+                }),
+                "florence_data": ("JSON", {
+                    "tooltip": "Florence2Run `data` (region/OCR boxes). Auto-placed as elements; "
+                               "needs the `image` input connected (boxes are in image pixel space).",
+                }),
             },
         }
 
@@ -259,7 +351,7 @@ class Ideogram4BboxEditor:
                    "a preview image, pixel-space bounding boxes (SAM3/crop), and the resolved size.")
 
     def build(self, caption_json: str, width: int = 0, height: int = 0,
-              image=None, import_json: str = ""):
+              image=None, import_json: str = "", florence_caption: str = "", florence_data=None):
         obj = _apply_size(_parse_caption(caption_json), width, height)
         prompt = json.dumps(obj, ensure_ascii=False) if obj else "{}"
         W, H = _resolve_canvas(obj, width, height)
@@ -278,6 +370,9 @@ class Ideogram4BboxEditor:
                     ui["caption"] = [json.dumps(cap, ensure_ascii=False)]
             except (json.JSONDecodeError, ValueError):
                 pass
+        fl = _florence_caption_obj(florence_caption, florence_data, image, width, height)
+        if fl is not None:
+            ui["florence"] = [json.dumps(fl, ensure_ascii=False)]
         return {"ui": ui, "result": (prompt, preview, bboxes, W, H)}
 
 
