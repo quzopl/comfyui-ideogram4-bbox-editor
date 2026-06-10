@@ -132,8 +132,10 @@ function buildEditor(node) {
     if (widget.element) widget.element.style.display = "none"; // belt & suspenders for DOM-backed widgets
   }
 
-  let ar = "1:1", hld = "", bg = "", els = [], sel = null, uid = 0, hadLegacyStyle = false;
+  let ar = "1:1", hld = "", bg = "", els = [], sel = null, uid = 0;
   let autoAR = true, bgUrl = null, bgOpacity = 0.85;
+  // optional v14 style_description (off by default; v15 has no style_description)
+  let styleOn = false, styleKind = "photo", sty = { aesthetics: "", lighting: "", medium: "", photo: "", art_style: "", palette: "" };
 
   const root = document.createElement("div");
   root.className = "ideo4";
@@ -307,7 +309,18 @@ function buildEditor(node) {
         bbox: Array.isArray(e.bbox) && e.bbox.length === 4 ? e.bbox.map(Number) : defBbox("obj"),
         desc: e.desc || "", text: e.text || "", z: i + 1 };
     });
-    hadLegacyStyle = !!(o.style_description && (o.style_description.aesthetics || o.style_description.lighting || o.style_description.photo || o.style_description.art_style || o.style_description.color_palette));
+    const sd = o.style_description;
+    if (sd && typeof sd === "object") {
+      styleOn = true;
+      styleKind = sd.art_style !== undefined && sd.photo === undefined ? "art_style" : "photo";
+      sty = {
+        aesthetics: sd.aesthetics || "", lighting: sd.lighting || "", medium: sd.medium || "",
+        photo: sd.photo || "", art_style: sd.art_style || "",
+        palette: Array.isArray(sd.color_palette) ? sd.color_palette.join(", ") : "",
+      };
+    } else {
+      styleOn = false;
+    }
     sel = els.length ? els[0].id : null;
   }
 
@@ -407,6 +420,21 @@ function buildEditor(node) {
     els.push({ id: uid, type, hasBbox: true, bbox: b, desc: "", text: "", z: uid }); sel = uid; render();
   }
 
+  function styleSecHtml() {
+    const opt = (v, l) => '<option value="' + v + '"' + (styleKind === v ? " selected" : "") + ">" + l + "</option>";
+    let f = '<div class="field"><label class="lbl" style="text-transform:none;letter-spacing:0">' +
+      '<label style="cursor:pointer"><input type="checkbox" data-styon ' + (styleOn ? "checked" : "") +
+      ' style="width:auto;vertical-align:middle"> include style_description (optional, v14)</label></label></div>';
+    if (!styleOn) return f;
+    const fld = (name, label, ph) => '<div class="field"><label class="lbl">' + label + '</label><input data-sty="' + name +
+      '" value="' + esc(sty[name]) + '"' + (ph ? ' placeholder="' + ph + '"' : "") + "></div>";
+    f += '<div class="field"><label class="lbl">style kind</label><select data-stykind>' + opt("photo", "photo") + opt("art_style", "art_style") + "</select></div>";
+    f += fld("aesthetics", "aesthetics") + fld("lighting", "lighting") + fld("medium", "medium");
+    f += styleKind === "photo" ? fld("photo", "photo") : fld("art_style", "art_style");
+    f += fld("palette", "color_palette (#hex, comma-separated)", "#1A2B3C, #FFAA00");
+    return f;
+  }
+
   function renderList() {
     const L = q("[data-list]"); L.innerHTML = "";
     const head = document.createElement("div"); head.className = "sec";
@@ -415,6 +443,9 @@ function buildEditor(node) {
       '<div class="field"><label class="lbl">high_level_description <span class="ctr" data-hldctr></span></label><textarea data-fhld style="min-height:60px">' + esc(hld) + "</textarea></div>" +
       '<div class="field"><label class="lbl">background (scene shell only)</label><textarea data-fbg style="min-height:72px">' + esc(bg) + "</textarea></div>";
     L.appendChild(head);
+    const styleSec = document.createElement("div"); styleSec.className = "sec";
+    styleSec.innerHTML = "<h2>Style (optional)</h2>" + styleSecHtml();
+    L.appendChild(styleSec);
     if (!els.length) { const h = document.createElement("div"); h.className = "hint"; h.textContent = "Add an element with + obj or + text. One subject = one element (parts go in desc)."; L.appendChild(h); }
     [...els].sort((a, b) => a.z - b.z).forEach((e) => {
       const c = document.createElement("div"); c.className = "card" + (e.id === sel ? " sel" : ""); c.dataset.id = e.id;
@@ -433,6 +464,9 @@ function buildEditor(node) {
     bindInput("[data-far]", (v) => { if (/^\d+:\d+$/.test(v.trim())) { manualOverride(); setAR(v.trim()); } });
     bindInput("[data-fhld]", (v) => { hld = v; updateCounters(); renderJSON(); renderValidation(); });
     bindInput("[data-fbg]", (v) => { bg = v; renderJSON(); renderValidation(); });
+    { const c = q("[data-styon]"); if (c) c.onchange = () => { styleOn = c.checked; render(); }; }
+    { const s = q("[data-stykind]"); if (s) s.onchange = () => { styleKind = s.value; render(); }; }
+    qa("[data-sty]").forEach((inp) => (inp.oninput = () => { sty[inp.dataset.sty] = inp.value; renderJSON(); renderValidation(); }));
     qa("[data-x]").forEach((b) => (b.onclick = () => { els = els.filter((x) => x.id != b.dataset.x); if (sel == b.dataset.x) sel = null; render(); }));
     qa("[data-up]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); bumpZ(+b.dataset.up, +1); }));
     qa("[data-down]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); bumpZ(+b.dataset.down, -1); }));
@@ -455,20 +489,31 @@ function buildEditor(node) {
     qa("[data-ctr]").forEach((s) => { const e = els.find((x) => x.id == s.dataset.ctr); if (!e) return; const n = wordCount(e.desc); s.textContent = n + "/60 words"; s.classList.toggle("over", n > 60); });
   }
 
+  function styleDescription() {
+    // KJ key order: photo -> {aesthetics,lighting,photo,medium,color_palette?};
+    // art_style -> {aesthetics,lighting,medium,art_style,color_palette?}
+    const sd = { aesthetics: sty.aesthetics || "", lighting: sty.lighting || "" };
+    if (styleKind === "photo") { sd.photo = sty.photo || ""; sd.medium = sty.medium || ""; }
+    else { sd.medium = sty.medium || ""; sd.art_style = sty.art_style || ""; }
+    const pal = (sty.palette || "").split(",").map((s) => s.trim()).filter(Boolean)
+      .map((c) => (c[0] === "#" ? c : "#" + c).toUpperCase());
+    if (pal.length) sd.color_palette = pal;
+    return sd;
+  }
   function buildCaption() {
-    return {
-      aspect_ratio: ar, high_level_description: hld || "",
-      compositional_deconstruction: {
-        background: bg || "",
-        elements: [...els].sort((a, b) => a.z - b.z).map((e) => {
-          const o = { type: e.type };
-          if (e.hasBbox) o.bbox = e.bbox;
-          if (e.type === "text") o.text = e.text || "";
-          o.desc = e.desc || "";
-          return o;
-        }),
-      },
+    const cap = { aspect_ratio: ar, high_level_description: hld || "" };
+    if (styleOn) cap.style_description = styleDescription();
+    cap.compositional_deconstruction = {
+      background: bg || "",
+      elements: [...els].sort((a, b) => a.z - b.z).map((e) => {
+        const o = { type: e.type };
+        if (e.hasBbox) o.bbox = e.bbox;
+        if (e.type === "text") o.text = e.text || "";
+        o.desc = e.desc || "";
+        return o;
+      }),
     };
+    return cap;
   }
   function renderJSON() {
     const cap = buildCaption();
@@ -479,7 +524,6 @@ function buildEditor(node) {
 
   function renderValidation() {
     const box = q("[data-valbox]"), v = [];
-    if (hadLegacyStyle) v.push(["warn", "loaded a LEGACY format with style_description (aesthetics/lighting/photo/palette) — those fields do NOT exist in v15 and were dropped; rewrite the style as prose into high_level_description or background"]);
     if (!ar || !/^\d+:\d+$/.test(ar)) v.push(["err", "aspect_ratio must be in W:H format"]);
     if (!hld.trim()) v.push(["warn", "high_level_description is empty"]);
     else { if (wordCount(hld) > 50) v.push(["warn", "HLD exceeds 50 words (" + wordCount(hld) + ")"]); if (/\b(this image (shows|depicts)|depicts|captures)\b/i.test(hld)) v.push(["warn", "HLD should not start with shows/depicts/captures — start with the subject"]); }
@@ -527,6 +571,18 @@ function buildEditor(node) {
   q("[data-copypretty]").onclick = () => { navigator.clipboard.writeText(JSON.stringify(buildCaption(), null, 2)); flash("[data-copypretty]", "OK ✓", "Pretty"); };
   q("[data-dl]").onclick = () => { const blob = new Blob([JSON.stringify(buildCaption())], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "caption_v15.json"; a.click(); };
 
+  // per-node onExecuted payload (from build()'s ui): import_json caption, reference
+  // image backdrop, and resolved dims.
+  node.__ig4_exec = (m) => {
+    if (!m) return;
+    if (m.caption && m.caption[0]) { try { loadCaption(m.caption[0]); fitFrame(); } catch (e) {} }
+    if (m.bg_image && m.bg_image[0]) onNewImage(imageUrl(m.bg_image[0]));
+    else if (m.dims && m.dims.length === 2 && autoAR && !bgUrl) {
+      const w = m.dims[0], h = m.dims[1], g = gcd(w, h) || 1;
+      if (w > 0 && h > 0) setAR(w / g + ":" + h / g);
+    }
+  };
+
   // attach + init
   node.addDOMWidget("ideo_editor", "div", root, { serialize: false, hideOnZoom: false });
   node.size = [Math.max(node.size?.[0] || 0, 480), Math.max(node.size?.[1] || 0, 720)];
@@ -556,6 +612,12 @@ app.registerExtension({
     nodeType.prototype.onNodeCreated = function () {
       const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
       buildEditor(this);
+      return r;
+    };
+    const onExecuted = nodeType.prototype.onExecuted;
+    nodeType.prototype.onExecuted = function (message) {
+      const r = onExecuted ? onExecuted.apply(this, arguments) : undefined;
+      try { this.__ig4_exec && this.__ig4_exec(message); } catch (e) {}
       return r;
     };
   },

@@ -18,15 +18,21 @@ JSON string.
   (▲/▼ choose what sits on top).
 - **Caption-level fields** — `aspect_ratio`, `high_level_description`,
   `background` (scene shell only).
+- **Optional `style_description` (v14)** — off by default (v15 has no
+  `style_description`). Toggle it on to add a style block with a `photo` /
+  `art_style` kind, `aesthetics` / `lighting` / `medium`, and a `color_palette`
+  (comma-separated `#hex`). Emitted with the canonical key order; validation stays
+  silent about it. Importing a caption that has `style_description` loads it back
+  into these fields.
 - **Live validation panel** — flags v15 guideline issues as you type: word caps
   (HLD ≤ 50, desc ≤ 60), camera/shadow language in `desc`, floor/ground as an
   element, `"warm"` grading, post-processing in `background`, furniture/people
   smuggled into `background`, missing `text` in built environments, bad bbox, etc.
 - **Word counters** on HLD and each `desc`.
-- **Smart import** — paste any caption JSON; it unwraps `caption`/`data`/`result`
-  wrappers, doubly-encoded JSON, derives the ratio from `size`, and **converts
-  legacy (style_description) captions to v15** (warning you that style fields are
-  dropped — rewrite them as prose into HLD/background).
+- **Smart import** — paste any caption JSON, or wire one into the **`import_json`
+  input**; it unwraps `caption`/`data`/`result` wrappers, doubly-encoded JSON,
+  derives the ratio from `size`, and loads `style_description` into the style
+  fields. The output always reflects the editor, never the raw input.
 - **Copy minified / Pretty / Download**.
 - **Optional `width` / `height` inputs** — set the actual target size. When both
   are > 0 the editor canvas and the output's `aspect_ratio` follow `W:H` (e.g.
@@ -35,10 +41,18 @@ JSON string.
 - **Generated-image backdrop** — after each run the latest generated image is
   captured from the frontend and shown, scaled to fit, **behind the boxes** so you
   can see where to nudge them before regenerating (no wiring — a real `IMAGE`
-  input would create a graph loop). Controls: **Auto rozmiar** (grid/aspect ratio
+  input would create a graph loop). Controls: **Auto size** (grid/aspect ratio
   follow the image, else the connected `width`/`height`), a backdrop **opacity**
   slider, and **Clear backdrop**. Picking a preset / custom `W:H` switches Auto off.
-- **Output** — `prompt` (STRING): the live v15 caption JSON.
+- **Optional `image` input** — a reference image (e.g. `LoadImage`): dimmed behind
+  the `preview` output and shown as the editor backdrop (loads on run).
+- **Outputs**:
+  - `prompt` (STRING) — the live caption JSON.
+  - `preview` (IMAGE) — boxes + numbered tags + `desc`/`text` rendered over the
+    canvas (or the dimmed reference image).
+  - `bboxes` (BOUNDING_BOX) — pixel-space, nested `[[{x,y,width,height}]]`, ready
+    for **SAM3 / crop / mask** nodes.
+  - `width` / `height` (INT) — the resolved canvas size (passthrough).
 
 ## v15 output format
 
