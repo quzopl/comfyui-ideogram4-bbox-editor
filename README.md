@@ -82,6 +82,14 @@ JSON string.
 element. v15 has **no** `style_description` and **no** `color_palette` — describe
 style as prose inside `high_level_description` / `background`.
 
+## Example workflow
+
+`examples/florence2_autofill.json` — `LoadImage → Florence2Run ×2` (a
+`more_detailed_caption` for the HLD and a `dense_region_caption` for the boxes)
+→ **Ideogram4 Bbox Editor** → `PreviewImage`. Drag it onto the ComfyUI canvas,
+point `LoadImage` at an image, run once to auto-fill the editor, then tweak and
+generate. Requires [`comfyui-florence2`](https://github.com/kijai/ComfyUI-Florence2).
+
 ## Install
 
 Clone into `ComfyUI/custom_nodes/` and restart ComfyUI:
