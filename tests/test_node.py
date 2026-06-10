@@ -110,6 +110,29 @@ def test_florence_caption_obj_none_when_empty():
     assert ig4._florence_caption_obj("", None, None, 0, 0) is None
 
 
+def test_loc_elements_parses_region_string():
+    txt = ("human face<loc_531><loc_193><loc_623><loc_360>"
+           "man<loc_393><loc_159><loc_768><loc_998>"
+           "street light<loc_305><loc_98><loc_402><loc_600>")
+    out = ig4._loc_elements(txt)
+    assert [e["desc"] for e in out] == ["human face", "man", "street light"]
+    # x1,y1,x2,y2 (0-999) -> [ymin,xmin,ymax,xmax] (0-1000); first box ~ [193,531,360,623]
+    assert out[0]["type"] == "obj"
+    assert out[0]["bbox"] == [193, 532, 360, 624]
+
+
+def test_loc_caption_becomes_elements_not_hld():
+    txt = "cat<loc_100><loc_100><loc_500><loc_500>"
+    fl = ig4._florence_caption_obj(txt, None, None, 1024, 1024)
+    assert fl["high_level_description"] == ""               # raw region string not dumped into HLD
+    assert fl["compositional_deconstruction"]["elements"][0]["desc"] == "cat"
+
+
+def test_plain_caption_stays_hld():
+    fl = ig4._florence_caption_obj("a quiet harbour at dawn", None, None, 1024, 1024)
+    assert fl["high_level_description"] == "a quiet harbour at dawn"
+
+
 # ---- node interface --------------------------------------------------------
 def test_input_types():
     t = Node.INPUT_TYPES()

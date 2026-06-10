@@ -13,7 +13,10 @@ torch).
 from __future__ import annotations
 
 import json
+import re
 from math import gcd
+
+_LOC_RE = re.compile(r"<loc_(\d+)>")
 
 
 # --------------------------------------------------------------------------- #
@@ -176,11 +179,43 @@ def _florence_elements(data, W: int, H: int):
     return out
 
 
+def _loc_elements(text):
+    """Parse Florence's raw region string `label<loc_x1><loc_y1><loc_x2><loc_y2>...`
+    into v15 elements. <loc_N> is a 0-999 normalized coordinate (no image dims
+    needed). Returns [] when the text has no <loc_> tokens."""
+    if not text or "<loc_" not in text:
+        return []
+    parts = re.split(r"(<loc_\d+>)", text)
+    out, label, locs = [], "", []
+    for p in parts:
+        m = _LOC_RE.fullmatch(p) if p else None
+        if m:
+            locs.append(int(m.group(1)))
+            if len(locs) == 4:
+                x1, y1, x2, y2 = locs
+                def g(v):
+                    return int(max(0, min(1000, round(v / 999.0 * 1000.0))))
+                ymin, ymax = sorted((g(y1), g(y2)))
+                xmin, xmax = sorted((g(x1), g(x2)))
+                out.append({"type": "obj", "bbox": [ymin, xmin, ymax, xmax], "desc": label.strip()})
+                label, locs = "", []
+        else:
+            label += p
+    return out
+
+
 def _florence_caption_obj(florence_caption, florence_data, image, width, height):
     """Assemble a v15 caption from Florence-2 outputs, or None when nothing usable."""
     cap_text = (florence_caption or "").strip()
     W, H = _image_dims(image) if image is not None else (int(width or 0), int(height or 0))
-    els = _florence_elements(florence_data, W, H) if florence_data is not None else []
+    # A region-task `caption` is the raw "label<loc_..>" string: parse it to labeled
+    # elements (recovers the per-region labels that `data` drops) instead of dumping
+    # it into high_level_description. <loc_> coords are normalized, no image needed.
+    loc_els = _loc_elements(cap_text)
+    if loc_els:
+        els, cap_text = loc_els, ""
+    else:
+        els = _florence_elements(florence_data, W, H) if florence_data is not None else []
     if not cap_text and not els:
         return None
     g = gcd(W, H) if W > 0 and H > 0 else 0

@@ -51,9 +51,14 @@ JSON string.
   `Florence2Run` outputs into `florence_caption` (→ `high_level_description`) and
   `florence_data` (→ region/OCR boxes as elements; needs `image` connected so the
   pixel boxes can be normalized). Auto-fill re-applies **only when the Florence
-  output changes**, so re-runs don't clobber your edits. (kijai's `data` carries
-  labels only for `caption_to_phrase_grounding` and `ocr_with_region`; `OD` /
-  `dense_region_caption` auto-place boxes with empty `desc`.)
+  output changes**, so re-runs don't clobber your edits.
+  - Feed `florence_caption` from a **caption** task (`more_detailed_caption`) and
+    `florence_data` from a **region** task (`dense_region_caption`) — see
+    `examples/florence2_autofill.json`.
+  - If you wire a **region task's `caption`** instead (the raw `label<loc_…>`
+    string), it's parsed into **labeled elements** — recovering the per-region
+    descriptions that kijai's `data` drops for `OD` / `dense_region_caption`
+    (`<loc_>` is normalized, so no `image` needed for that path).
 - **Outputs**:
   - `prompt` (STRING) — the live caption JSON.
   - `preview` (IMAGE) — boxes + numbered tags + `desc`/`text` rendered over the
