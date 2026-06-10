@@ -53,7 +53,8 @@ JSON string.
   pixel boxes can be normalized). Auto-fill re-applies **only when the Florence
   output changes**, so re-runs don't clobber your edits.
   - For **labeled boxes + a prose HLD**, wire a **caption** task
-    (`more_detailed_caption`) → `florence_caption`, and a **region** task's raw
+    (`detailed_caption` — `more_detailed_caption` runs ~150 words and trips the
+    50-word HLD warning) → `florence_caption`, and a **region** task's raw
     `caption` (`dense_region_caption`) → **`florence_regions`** (parsed into elements
     with `desc = label`). See `examples/florence2_autofill.json`.
   - `florence_regions` recovers the per-region labels that kijai's `data` **drops**
@@ -91,8 +92,8 @@ style as prose inside `high_level_description` / `background`.
 ## Example workflow
 
 `examples/florence2_autofill.json` — `LoadImage → Florence2Run ×2` (a
-`more_detailed_caption` for the HLD and a `dense_region_caption` for the boxes)
-→ **Ideogram4 Bbox Editor** → `PreviewImage`. Drag it onto the ComfyUI canvas,
+`detailed_caption` for the HLD and a `dense_region_caption`'s raw `caption` for the
+labeled boxes) → **Ideogram4 Bbox Editor** → `PreviewImage`. Drag it onto the ComfyUI canvas,
 point `LoadImage` at an image, run once to auto-fill the editor, then tweak and
 generate. Requires [`comfyui-florence2`](https://github.com/kijai/ComfyUI-Florence2).
 
