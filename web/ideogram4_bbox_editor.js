@@ -121,9 +121,10 @@ const BUILT_RE = /\b(shop|stall|restaurant|store|sign|market|cafe|bar|workshop|p
 
 function buildEditor(node) {
   const widget = (node.widgets || []).find((w) => w.name === "caption_json");
-  // Snapshot the saved caption NOW, before any render() (e.g. via ResizeObserver)
-  // can overwrite widget.value with the empty initial state and clobber it.
-  const initialCaption = widget && widget.value != null ? String(widget.value) : "";
+  // The saved caption is read LIVE from widget.value at seed time, never
+  // snapshotted here: ComfyUI restores widgets_values via node.configure()
+  // *after* onNodeCreated, so a snapshot taken now would be the empty default
+  // and the reloaded / image-embedded prompt would be lost.
   let initDone = false;
   if (widget) {
     widget.type = "hidden";
@@ -595,18 +596,27 @@ function buildEditor(node) {
   const ro = new ResizeObserver(() => fitFrame());
   ro.observe(root.querySelector(".canvas-host"));
 
-  setTimeout(() => {
-    let seeded = false;
-    if (initialCaption && initialCaption.trim() && initialCaption.trim() !== "{}") {
-      try { loadCaption(initialCaption); seeded = true; } catch (e) {}
+  // Seed the editor from the (restored) caption_json widget. Idempotent and
+  // re-runnable: called from a deferred init and again from onConfigure so the
+  // prompt survives reloads and appears when a saved image's workflow is loaded.
+  let seededReal = false;
+  function seedFromWidget() {
+    const cur = widget && widget.value != null ? String(widget.value).trim() : "";
+    const real = cur && cur !== "{}";
+    if (real) {
+      try { loadCaption(cur); seededReal = true; } catch (e) {}
+    } else if (!seededReal && els.length === 0) {
+      addEl("obj");
     }
-    if (!seeded && els.length === 0) addEl("obj");
     initDone = true;            // from here renderJSON may persist to the widget
     syncFromWH();               // real W/H (if set) win over the caption's aspect ratio
     fitFrame();
     if (LAST_BG) onNewImage(LAST_BG);   // adopt the most recent generated image
     renderJSON();               // sync widget.value with the loaded state
-  }, 0);
+  }
+  node.__ig4_seed = seedFromWidget;
+
+  setTimeout(seedFromWidget, 0);
 }
 
 app.registerExtension({
@@ -624,6 +634,15 @@ app.registerExtension({
     nodeType.prototype.onExecuted = function (message) {
       const r = onExecuted ? onExecuted.apply(this, arguments) : undefined;
       try { this.__ig4_exec && this.__ig4_exec(message); } catch (e) {}
+      return r;
+    };
+    // ComfyUI restores widgets_values (incl. caption_json) here when loading a
+    // workflow — from a reload or a saved image dropped onto the canvas. Re-seed
+    // so the used prompt shows up in the editor.
+    const onConfigure = nodeType.prototype.onConfigure;
+    nodeType.prototype.onConfigure = function (info) {
+      const r = onConfigure ? onConfigure.apply(this, arguments) : undefined;
+      try { this.__ig4_seed && this.__ig4_seed(); } catch (e) {}
       return r;
     };
   },
