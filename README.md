@@ -33,6 +33,10 @@ JSON string.
   input**; it unwraps `caption`/`data`/`result` wrappers, doubly-encoded JSON,
   derives the ratio from `size`, and loads `style_description` into the style
   fields. The output always reflects the editor, never the raw input.
+- **Persistent prompt** — the caption is saved with the workflow and reloaded
+  into the editor on reopen / page reload, and it also appears when you **drop a
+  saved image** whose embedded workflow contains it (e.g. one written by
+  *Save Image (Rich Metadata)* with `embed_workflow` on).
 - **Copy minified / Pretty / Download**.
 - **Optional `width` / `height` inputs** — set the actual target size. When both
   are > 0 the editor canvas and the output's `aspect_ratio` follow `W:H` (e.g.
